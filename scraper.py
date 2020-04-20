@@ -15,18 +15,18 @@ def visible(item):
     return not ((item.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']) or isinstance(item, Comment))
 
 def cleanHTML(content):
-    return u" ".join(x.strip() for x in filter(visible, BeautifulSoup(content, 'html.parser').findAll(text=True)))
+    return u" ".join(x.strip() for x in filter(visible, BeautifulSoup(content, features='html.parser').findAll(text=True)))
 
 def scraper(url, resp):
-    if resp.status_code == 200:
-        links = extract_next_links(url, resp)
-        tokenMap = tokenize(cleanHTML(resp.content))
+    if resp.status == 200:
+        tokenMap = tokenize(cleanHTML(resp.raw_response.content))
+        links = extract_next_links(url, resp.raw_response.content)
         return [link for link in links if is_valid(link)]
     else:
-        print(f"Error: status_code = {resp.status_code} from url = {url}")
+        print(f"Error: status_code = {resp.status} from url = {url}")
 
-def extract_next_links(url, resp):
-    return [link.get('href') for link in BeautifulSoup(resp.content).find_all('a', href=True) if "http" in link.get('href')]
+def extract_next_links(url, content):
+    return [link.get('href') for link in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in link.get('href')]
 
 def is_valid(url):
     try:
