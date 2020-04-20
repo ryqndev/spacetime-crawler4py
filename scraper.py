@@ -1,19 +1,43 @@
 import re
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+from tokenizer import tokenize 
+
+WHITELISTED_DOMAINS = ["ics.uci.edu", 
+                       "cs.uci.edu", 
+                       "informatics.uci.edu", 
+                       "stat.uci.edu", 
+                       "today.uci.edu/department/information_computer_sciences"
+                       ]
+                       
+def clean(htmlContent):
+    pass
 
 def scraper(url, resp):
-    links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    tokenize(clean(resp.content))
+    if resp.status_code == 200:
+        links = extract_next_links(url, resp)
+        tokens = tokenize(clean(resp.content))
+        return [link for link in links if is_valid(link)]
+    else:
+        print(f"Error: status_code = {resp.status_code} from url = {url}")
 
 def extract_next_links(url, resp):
-    # Implementation requred.
-    return list()
+    return [link.get('href') for link in BeautifulSoup(resp.content).find_all('a', href=True) if "http" in link.get('href')]
 
 def is_valid(url):
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
+
+        valid = False
+        for dom in WHITELISTED_DOMAINS:
+            if dom in url:
+                valid = True
+        if not valid:
+            return False
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
