@@ -1,6 +1,7 @@
 import re
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from bs4.element import Comment
 from tokenizer import tokenize 
 
 WHITELISTED_DOMAINS = ["ics.uci.edu", 
@@ -9,15 +10,17 @@ WHITELISTED_DOMAINS = ["ics.uci.edu",
                        "stat.uci.edu", 
                        "today.uci.edu/department/information_computer_sciences"
                        ]
-                       
-def clean(htmlContent):
-    pass
+
+def visible(item):
+    return not ((item.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']) or isinstance(item, Comment))
+
+def cleanHTML(content):
+    return u" ".join(x.strip() for x in filter(visible, BeautifulSoup(content, 'html.parser').findAll(text=True)))
 
 def scraper(url, resp):
-    tokenize(clean(resp.content))
     if resp.status_code == 200:
         links = extract_next_links(url, resp)
-        tokens = tokenize(clean(resp.content))
+        tokenMap = tokenize(cleanHTML(resp.content))
         return [link for link in links if is_valid(link)]
     else:
         print(f"Error: status_code = {resp.status_code} from url = {url}")
