@@ -15,15 +15,16 @@ STOP_WORDS = set([
             'wouldn\'t', 'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves', 
 ])
 
-def tokenize(document):
-    tokenMap = dict()
+def tokenize(document, tokenMap):
     token = ""
+    count = 0
     for char in document:
         if char.isalnum() or char == "\'":
             token += char
         else:
             token = token.lower()
             if len(token) > 2 and token not in STOP_WORDS:
+                count += 1
                 tokenMap[token] = 1 if token not in tokenMap else tokenMap[token] + 1
                 token = ""
-    return tokenMap
+    return count

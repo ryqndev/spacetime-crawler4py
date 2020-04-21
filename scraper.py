@@ -10,6 +10,9 @@ WHITELISTED_DOMAINS = ["ics.uci.edu",
                        "stat.uci.edu", 
                        "today.uci.edu/department/information_computer_sciences"
                        ]
+#tokenMap = dict() #Keep track of how many times a token appears in the corpus
+#mostTokens = 0    #The number of tokens of the longest page.
+#urlOfLongest = ""    #Cooresponding url for mostTokens
 
 def visible(item):
     return not ((item.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']) or isinstance(item, Comment))
@@ -19,16 +22,26 @@ def cleanHTML(content):
 
 def scraper(url, resp):
     if resp.status == 200:
-        tokenMap = tokenize(cleanHTML(resp.raw_response.content))
+        tokenCount = tokenize(cleanHTML(resp.raw_response.content),scraper.tokenMap)
+        if tokenCount > scraper.mostTokens:
+            scraper.mostTokens = tokenCount
+            scraper.urlOfLongest = url
+        print(f"mostTokens = {scraper.mostTokens}, len(tokemMap) = {len(scraper.tokenMap.keys())}")
         links = extract_next_links(url, resp.raw_response.content)
         return [link for link in links if is_valid(link)]
     else:
         print(f"Error: status_code = {resp.status} from url = {url}")
 
+#Initialize statics for collecting statistics
+scraper.tokenMap = dict()
+scraper.mostTokens = 0
+scraper.urlOfLongest = ""
+
 def extract_next_links(url, content):
     return [link.get('href') for link in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in link.get('href')]
 
 def is_valid(url):
+    global WHITELISTED_DOMAINS
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
