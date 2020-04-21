@@ -61,9 +61,10 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
+        argIndex = url.find("?")
         valid = False
         for dom in WHITELISTED_DOMAINS:
-            if dom in url:
+            if dom in url[:(argIndex if argIndex > 0 else len(url))]:
                 valid = True
         if not valid:
             return False
@@ -81,7 +82,7 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
-
+    
     except TypeError:
         print ("TypeError for ", parsed)
         raise
