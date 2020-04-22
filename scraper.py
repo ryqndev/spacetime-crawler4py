@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from tokenizer import tokenize 
+from difflib import SequenceMatcher 
 
 WHITELISTED_DOMAINS = ["ics.uci.edu", 
                        "cs.uci.edu", 
@@ -10,8 +11,6 @@ WHITELISTED_DOMAINS = ["ics.uci.edu",
                        "stat.uci.edu", 
                        "today.uci.edu/department/information_computer_sciences"
                        ]
-
-BLACKLISTED_DOMAINS = ["https://wics.ics.uci.edu/events/category/boothing"]
 
 def visible(item):
     return not ((item.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']) or isinstance(item, Comment))
@@ -21,26 +20,37 @@ def cleanHTML(content):
 
 def scraper(url, resp):
     if resp.status == 200:
-        tokenCount = tokenize(cleanHTML(resp.raw_response.content),scraper.tokenMap)
+        url = defragmentURL(url)
 
-        #Update url with the max tokens
-        if tokenCount > scraper.mostTokens:
-            scraper.mostTokens = tokenCount
-            scraper.urlOfLongest = url
-        
-        #Get unique ics subdomains
-        try:
-            temp = url.split(".")
-            if len(temp) > 1 and temp[1] == "ics" and "www" not in temp[0]: #https://xyz.ics.edu case
-                scraper.icsSubdomains.add(temp[0][temp[0].find("//")+2:])
-            elif len(temp) > 2 and temp[2] == "ics": #https://www.xyz.ics.edu case
-                scraper.icsSubdomains.add(temp[1])
-        except:
-            print(f"Error obtaining subdomain for: {url}")
+        #Compute url similarity
+        similarity = 0
+        if scraper.previous is not None:
+            similarity = SequenceMatcher(None, url, scraper.previous).ratio()
+        tempURL = scraper.previous
+        scraper.previous = url
 
-        print(f"mostTokens = {scraper.mostTokens}, len(tokenMap) = {len(scraper.tokenMap.keys())}")
-        links = extract_next_links(url, resp.raw_response.content)
-        return [link for link in links if is_valid(link)]
+        #Check that the previous url is sufficiently different from the current one
+        if similarity < .95 and url not in scraper.uniqueWebpages:     
+            tokenCount = tokenize(cleanHTML(resp.raw_response.content),scraper.tokenMap)
+            #Update url with the most tokens
+            if tokenCount > scraper.mostTokens:
+                scraper.mostTokens = tokenCount
+                scraper.urlOfLongest = url
+                
+            #Get unique ics subdomains
+            try:
+                temp = url.split(".")
+                if len(temp) > 1 and temp[1] == "ics" and "www" not in temp[0]: #https://xyz.ics.edu case
+                    scraper.icsSubdomains.add(temp[0][temp[0].find("//")+2:])
+                elif len(temp) > 2 and temp[2] == "ics": #https://www.xyz.ics.edu case
+                    scraper.icsSubdomains.add(temp[1])
+            except:
+                print(f"Error obtaining subdomain for: {url}")
+
+            print(f"mostTokens = {scraper.mostTokens}, len(tokenMap) = {len(scraper.tokenMap.keys())}")
+            links = extract_next_links(url, resp.raw_response.content)
+            scraper.uniqueWebpages.add(url)
+            return [link for link in links if is_valid(link)]
     else:
         print(f"Error: status_code = {resp.status} from url = {url}")
 
@@ -50,29 +60,51 @@ scraper.mostTokens = 0
 scraper.urlOfLongest = ""
 scraper.icsSubdomains = set()
 scraper.uniqueWebpages = set()
+scraper.previous = None
 
+def defragmentURL(url):
+    #Remove fragment and args from a url
+    argIndex = url.find("?")
+    fragIndex = url.find("#")
+
+    #Split url at the first occurance of either "#" or "?" if either is present.
+    if fragIndex > 0 and argIndex > 0:
+        last = min(fragIndex, argIndex)
+        url = url[:(last-1 if url[last-1] == "/" else last)]
+    elif fragIndex > 0 or argIndex > 0:
+        last = max(fragIndex, argIndex)
+        url = url[:(last-1 if url[last-1] == "/" else last)]
+    return url
+    
 def extract_next_links(url, content):
-    return [link.get('href') for link in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in link.get('href')]
-
+    diffLinks = list()
+    for link in [defragmentURL(l.get('href')) for l in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in l.get('href')]:
+        similar = False
+        for other in diffLinks:
+            if SequenceMatcher(None, link, other).ratio() > .95:
+                similar = True
+                break
+        if similar == False:
+            diffLinks.append(link)
+    return diffLinks
+        
 def is_valid(url):
     global WHITELISTED_DOMAINS
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
-
-        argIndex = url.find("?")
-        valid = False
-        for dom in WHITELISTED_DOMAINS:
-            if dom in url[:(argIndex if argIndex > 0 else len(url))]:
-                valid = True
-        if not valid:
-            return False
-
-        for dom in BLACKLISTED_DOMAINS:
-            if dom in url:
+        try:
+            domain = url.split("/")[2]
+            valid = False
+            for dom in WHITELISTED_DOMAINS:
+                if dom in domain:
+                    valid = True
+            if not valid:
                 return False
-
+        except IndexError:
+            print(f"Error: malformed url: {url}")
+        
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -82,7 +114,7 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
-    
+
     except TypeError:
         print ("TypeError for ", parsed)
         raise
