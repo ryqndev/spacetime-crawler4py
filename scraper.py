@@ -11,7 +11,6 @@ WHITELISTED_DOMAINS = ["ics.uci.edu",
                        "stat.uci.edu", 
                        "today.uci.edu/department/information_computer_sciences"
                        ]
-
 def visible(item):
     return not ((item.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']) or isinstance(item, Comment))
 
@@ -47,7 +46,6 @@ def scraper(url, resp):
             except:
                 print(f"Error obtaining subdomain for: {url}")
 
-            print(f"mostTokens = {scraper.mostTokens}, len(tokenMap) = {len(scraper.tokenMap.keys())}")
             links = extract_next_links(url, resp.raw_response.content)
             scraper.uniqueWebpages.add(url)
             return [link for link in links if is_valid(link)]
@@ -61,35 +59,61 @@ scraper.urlOfLongest = ""
 scraper.icsSubdomains = set()
 scraper.uniqueWebpages = set()
 scraper.previous = None
+   
+def printStats():
+    if(len(scraper.tokenMap) > 0):
+        print("Top 50 tokens:")
+        for i, (token, count) in enumerate(sorted(scraper.tokenMap.items(), key=lambda pair: pair[1], reverse=True)):
+            if i > 50:
+                break
+            print(f"<{token}> <{count}>")  
+    
+    print("\n Subdomains: ", scraper.icsSubdomains, "\n")
+    print(f"Number of unique tokens: {len(scraper.tokenMap)}")
+    print(f"Url with most tokens: {scraper.urlOfLongest} with {scraper.mostTokens} unique tokens.")
+    print(f"Number of unique URLs scraped: {len(scraper.uniqueWebpages)}")
+
+
+# def defragmentURL(url):
+#     #Remove fragment and args from a url
+#     argIndex = url.find("?")
+#     fragIndex = url.find("#")
+
+#     #Split url at the first occurance of either "#" or "?" if either is present.
+#     if fragIndex > 0 and argIndex > 0:
+#         last = min(fragIndex, argIndex)
+#         url = url[:(last-1 if url[last-1] == "/" else last)]
+#     elif fragIndex > 0 or argIndex > 0:
+#         last = max(fragIndex, argIndex)
+#         url = url[:(last-1 if url[last-1] == "/" else last)]
+#     return url
 
 def defragmentURL(url):
     #Remove fragment and args from a url
-    argIndex = url.find("?")
     fragIndex = url.find("#")
-
-    #Split url at the first occurance of either "#" or "?" if either is present.
-    if fragIndex > 0 and argIndex > 0:
-        last = min(fragIndex, argIndex)
-        url = url[:(last-1 if url[last-1] == "/" else last)]
-    elif fragIndex > 0 or argIndex > 0:
-        last = max(fragIndex, argIndex)
-        url = url[:(last-1 if url[last-1] == "/" else last)]
+    if fragIndex > 0:
+        url = url[:(fragIndex-1 if url[fragIndex-1] == "/" else fragIndex)]
+    elif url[-1] == "/":
+        url = url[:-1]
     return url
-    
+
+# def extract_next_links(url, content):
+#     diffLinks = list()
+#     for link in [defragmentURL(l.get('href')) for l in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in l.get('href')]:
+#         similar = False
+#         for other in diffLinks:
+#             if SequenceMatcher(None, link, other).ratio() > .95:
+#                 similar = True
+#                 break
+#         if similar == False:
+#             diffLinks.append(link)
+#     return diffLinks
+
 def extract_next_links(url, content):
-    diffLinks = list()
-    for link in [defragmentURL(l.get('href')) for l in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in l.get('href')]:
-        similar = False
-        for other in diffLinks:
-            if SequenceMatcher(None, link, other).ratio() > .95:
-                similar = True
-                break
-        if similar == False:
-            diffLinks.append(link)
-    return diffLinks
-        
+    return [defragmentURL(l.get('href')) for l in BeautifulSoup(content, features="html.parser").find_all('a', href=True) if "http" in l.get('href')]
+
 def is_valid(url):
-    global WHITELISTED_DOMAINS
+    global WHITELISTED_DOMAINS  
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
