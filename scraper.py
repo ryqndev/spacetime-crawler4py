@@ -37,9 +37,10 @@ def scraper(url, resp):
                 scraper.urlOfLongest = url
                 
             #Get unique ics subdomains
+            links = extract_next_links(url, resp.raw_response.content)
             try:
                 subdomain = getSubdomain(url,"ics.uci.edu")
-                if subdomain != "none":
+                if subdomain:
                     scraper.icsSubdomains[subdomain] = len(set([link for link in links if is_valid(link)]))
 #                 temp = url.split(".")
 #                 if len(temp) > 1 and temp[1] == "ics" and "www" not in temp[0]: #https://xyz.ics.edu case
@@ -70,7 +71,7 @@ def getSubdomain(url, dom, prefix = "http://"):
         if "www" in parsed.netloc:
             return prefix + sub[1] + "." + dom + "/"
         return prefix + sub[0] + "."+ dom + "/"
-    return "none"
+    return None
    
 def printStats():
     if(len(scraper.tokenMap) > 0):
