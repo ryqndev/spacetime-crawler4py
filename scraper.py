@@ -38,15 +38,18 @@ def scraper(url, resp):
                 
             #Get unique ics subdomains
             try:
-                temp = url.split(".")
-                if len(temp) > 1 and temp[1] == "ics" and "www" not in temp[0]: #https://xyz.ics.edu case
-                    scraper.icsSubdomains.add(temp[0][temp[0].find("//")+2:])
-                elif len(temp) > 2 and temp[2] == "ics": #https://www.xyz.ics.edu case
-                    scraper.icsSubdomains.add(temp[1])
+                subdomain = getSubdomain(url,"ics.uci.edu")
+                if subdomain != "none":
+                    scraper.icsSubdomains[subdomain] = len(set([link for link in links if is_valid(link)]))
+#                 temp = url.split(".")
+#                 if len(temp) > 1 and temp[1] == "ics" and "www" not in temp[0]: #https://xyz.ics.edu case
+#                     scraper.icsSubdomains.add(temp[0][temp[0].find("//")+2:])
+#                 elif len(temp) > 2 and temp[2] == "ics": #https://www.xyz.ics.edu case
+#                     scraper.icsSubdomains.add(temp[1])
             except:
                 print(f"Error obtaining subdomain for: {url}")
 
-            links = extract_next_links(url, resp.raw_response.content)
+            
             scraper.uniqueWebpages.add(url)
             return [link for link in links if is_valid(link)]
     else:
@@ -56,9 +59,18 @@ def scraper(url, resp):
 scraper.tokenMap = dict()
 scraper.mostTokens = 0
 scraper.urlOfLongest = ""
-scraper.icsSubdomains = set()
+scraper.icsSubdomains = dict()
 scraper.uniqueWebpages = set()
 scraper.previous = None
+
+def getSubdomain(url, dom, prefix = "http://"):
+    parsed = urlparse(url)
+    if dom in parsed.netloc:
+        sub = parsed.netloc.split(".")
+        if "www" in parsed.netloc:
+            return prefix + sub[1] + "." + dom + "/"
+        return prefix + sub[0] + "."+ dom + "/"
+    return "none"
    
 def printStats():
     if(len(scraper.tokenMap) > 0):
