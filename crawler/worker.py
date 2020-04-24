@@ -20,7 +20,22 @@ class Worker(Thread):
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 printStats()
                 break
-            resp = download(tbd_url, self.config, self.logger)
+            
+            #We will ignore any network exceptions and retry.
+            startTime = time.time()
+            resp = None
+            hasFailed = False
+            while resp is None:
+                try:
+                    resp = download(tbd_url, self.config, self.logger)
+                except Exception as ex:
+                    hasFailed = True
+                    print(f"{ex}\nRetrying in 60 sec.")
+                    time.sleep(60)
+            if hasFailed:
+                with open("server-outages.rtf", "a+") as err:
+                    err.write(f"Server outage from: {startTime} to: {time.time()} duration: {round(time.time() - startTime)} sec.\n")
+
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")

@@ -61,7 +61,7 @@ def scraper(url, resp):
             return None
     elif resp.status >= 600:
         with open("600-errors.rtf", "a+") as f:
-            f.write(f"status <{resp.status}> from: {url}\n")
+            f.write(f"status <{resp.status}> -- {resp.error} -- {url}\n")
         return None
     else:
         return None
