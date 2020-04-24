@@ -6,16 +6,16 @@ from tokenizer import tokenize
 from difflib import SequenceMatcher 
 from hashlib import sha256
 
-WHITELISTED_DOMAINS = [".ics.uci.edu", 
-                       ".cs.uci.edu", 
-                       ".informatics.uci.edu", 
-                       ".stat.uci.edu", 
-                       ".today.uci.edu/department/information_computer_sciences",
-                       "//ics.uci.edu", 
-                       "//cs.uci.edu", 
-                       "//informatics.uci.edu", 
-                       "//stat.uci.edu", 
-                       "//today.uci.edu/department/information_computer_sciences"]
+WHITELISTED_DOMAINS = [".ics.uci.edu/", 
+                       ".cs.uci.edu/", 
+                       ".informatics.uci.edu/", 
+                       ".stat.uci.edu/", 
+                       "today.uci.edu/department/information_computer_sciences/",
+                       "//ics.uci.edu/", 
+                       "//cs.uci.edu/", 
+                       "//informatics.uci.edu/", 
+                       "//stat.uci.edu/", 
+                       "//today.uci.edu/department/information_computer_sciences/"]
 
 BLACKLISTED_DOMAINS = ["wics.ics.uci.edu/events"]
 
@@ -59,6 +59,10 @@ def scraper(url, resp):
             return [link for link in links if is_valid(link)]
         else:
             return None
+    elif resp.status >= 600:
+        with open("600-errors.rtf", "a+") as f:
+            f.write(f"status <{resp.status}> from: {url}\n")
+        return None
     else:
         return None
 
