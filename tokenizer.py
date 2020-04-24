@@ -26,5 +26,5 @@ def tokenize(document, tokenMap):
             if len(token) > 2 and token not in STOP_WORDS:
                 count += 1
                 tokenMap[token] = 1 if token not in tokenMap else tokenMap[token] + 1
-                token = ""
+            token = ""
     return count
