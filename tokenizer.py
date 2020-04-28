@@ -12,12 +12,13 @@ STOP_WORDS = set([
             'they', 'they\'d', 'they\'ll', 'they\'re', 'they\'ve', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 
             'very', 'was', 'wasn\'t', 'we', 'we\'d', 'we\'ll', 'we\'re', 'we\'ve', 'were', 'weren\'t', 'what', 'what\'s', 'when', 
             'when\'s','where', 'where\'s', 'which', 'while', 'who', 'who\'s', 'whom', 'why', 'why\'s', 'with', 'won\'t', 'would', 
-            'wouldn\'t', 'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves', 
+            'wouldn\'t', 'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves'
 ])
 
 def tokenize(document, tokenMap):
     token = ""
     count = 0
+    byteCount = 0
     for char in document:
         if char.isalnum() or char == "\'":
             token += char
@@ -25,6 +26,25 @@ def tokenize(document, tokenMap):
             token = token.lower()
             if len(token) > 2 and token not in STOP_WORDS:
                 count += 1
+                byteCount += len(token)
                 tokenMap[token] = 1 if token not in tokenMap else tokenMap[token] + 1
             token = ""
-    return count
+    return count, byteCount
+
+
+def getTokenizedList(document):
+    tokens = list()
+    token = ""
+    count = 0
+    byteCount = 0
+    for char in document:
+        if char.isalnum() or char == "\'":
+            token += char
+        else:
+            token = token.lower()
+            if len(token) > 2 and token not in STOP_WORDS:
+                count += 1
+                byteCount += len(token)
+                tokens.append(token)
+            token = ""
+    return count, byteCount, tokens
